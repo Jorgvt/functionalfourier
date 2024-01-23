@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "functionalfourier"
+  site-url: "https://Jorgvt.github.io/functionalfourier"
+  description: "Optimizing funcional filters in the Fourier domain using JaX."
+  repo-branch: main
+  repo-url: "https://github.com/Jorgvt/functionalfourier"
