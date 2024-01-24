@@ -37,8 +37,8 @@ def load_cats_vs_dogs(test_split):
     def preprocess(img):
         img = tf.cast(img, tf.float32) / 255.0
         return tf.image.resize(img, size=(150,150))
-    dst_train = tfds.load("cats_vs_dogs", split=f"train[:{int(100-test_split*100)}]")
-    dst_val = tfds.load("cats_vs_dogs", split=f"train[{int(100-test_split*100)}:]")
+    dst_train = tfds.load("cats_vs_dogs", split=f"train[:{int(100-test_split*100)}%]")
+    dst_val = tfds.load("cats_vs_dogs", split=f"train[{int(100-test_split*100)}%:]")
     dst_train = dst_train.map(lambda x: (preprocess(x["image"]), x["label"]), num_parallel_calls=tf.data.AUTOTUNE)
     dst_val = dst_val.map(lambda x: (preprocess(x["image"]), x["label"]), num_parallel_calls=tf.data.AUTOTUNE)
     return dst_train, dst_val
