@@ -35,6 +35,7 @@ def load_mnist():
 def load_cats_vs_dogs():
     import tensorflow_datasets as tfds
     def preprocess(img):
+        img = tf.cast(img, tf.float32) / 255.0
         return tf.image.resize(img, size=(150,150))
     dst = tfds.load("cats_vs_dogs", split="train")
     dst = dst.map(lambda x: (preprocess(x["image"]), x["label"]), num_parallel_calls=tf.data.AUTOTUNE)
