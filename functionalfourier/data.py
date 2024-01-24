@@ -17,7 +17,7 @@ def load_cifar10():
     Y_train = Y_train.astype(np.int32)[...,0]
     Y_test = Y_test.astype(np.int32)[...,0]
     
-    return (X_train, Y_train), (X_test, Y_test)
+    return tf.data.Dataset.from_tensor_slices((X_train, Y_train)), tf.data.Dataset.from_tensor_slices((X_test, Y_test))
 
 # %% ../Notebooks/01_data.ipynb 4
 def load_mnist():
@@ -29,7 +29,7 @@ def load_mnist():
     Y_train = Y_train.astype(np.int32)
     Y_test = Y_test.astype(np.int32)
 
-    return (X_train, Y_train), (X_test, Y_test)
+    return tf.data.Dataset.from_tensor_slices((X_train, Y_train)), tf.data.Dataset.from_tensor_slices((X_test, Y_test))
 
 # %% ../Notebooks/01_data.ipynb 5
 def load_cats_vs_dogs():
@@ -37,15 +37,15 @@ def load_cats_vs_dogs():
 
     dst = tfds.load("cats_vs_dogs", split="train")
     dst = dst.map(lambda x: (x["image"], x["label"]), num_parallel_calls=tf.data.AUTOTUNE)
-    return dst
+    return dst, None
 
 # %% ../Notebooks/01_data.ipynb 6
 def load_data(name: str):
     if name == "cifar10":
-        (X_train, Y_train), (X_test, Y_test) = load_cifar10()
+        dst_train, dst_val = load_cifar10()
 
     elif name == "mnist":
-        (X_train, Y_train), (X_test, Y_test) = load_mnist()
+        dst_train, dst_val = load_mnist()
 
     elif name == "cats_vs_dogs":
-        dst = load_cats_vs_dogs()
+        dst_train, dst_val = load_cats_vs_dogs()
