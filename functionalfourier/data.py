@@ -49,3 +49,5 @@ def load_data(name: str):
 
     elif name == "cats_vs_dogs":
         dst_train, dst_val = load_cats_vs_dogs()
+    
+    return dst_train, dst_val
