@@ -32,17 +32,20 @@ def load_mnist():
     return tf.data.Dataset.from_tensor_slices((X_train, Y_train)), tf.data.Dataset.from_tensor_slices((X_test, Y_test))
 
 # %% ../Notebooks/01_data.ipynb 5
-def load_cats_vs_dogs():
+def load_cats_vs_dogs(test_split):
     import tensorflow_datasets as tfds
     def preprocess(img):
         img = tf.cast(img, tf.float32) / 255.0
         return tf.image.resize(img, size=(150,150))
-    dst = tfds.load("cats_vs_dogs", split="train")
-    dst = dst.map(lambda x: (preprocess(x["image"]), x["label"]), num_parallel_calls=tf.data.AUTOTUNE)
-    return dst, None
+    dst_train = tfds.load("cats_vs_dogs", split=f"train[:{int(100-test_split*100)}]")
+    dst_val = tfds.load("cats_vs_dogs", split=f"train[{int(100-test_split*100)}:]")
+    dst_train = dst_train.map(lambda x: (preprocess(x["image"]), x["label"]), num_parallel_calls=tf.data.AUTOTUNE)
+    dst_val = dst_val.map(lambda x: (preprocess(x["image"]), x["label"]), num_parallel_calls=tf.data.AUTOTUNE)
+    return dst_train, dst_val
 
 # %% ../Notebooks/01_data.ipynb 6
-def load_data(name: str):
+def load_data(name: str,
+              test_split: float):
     if name == "cifar10":
         dst_train, dst_val = load_cifar10()
 
@@ -50,6 +53,6 @@ def load_data(name: str):
         dst_train, dst_val = load_mnist()
 
     elif name == "cats_vs_dogs":
-        dst_train, dst_val = load_cats_vs_dogs()
+        dst_train, dst_val = load_cats_vs_dogs(test_split=test_split)
     
     return dst_train, dst_val
