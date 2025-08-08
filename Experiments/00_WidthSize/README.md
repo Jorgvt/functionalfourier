@@ -8,9 +8,9 @@ When using Gabors in convolutions in pixel-space the kernel size affects the opt
 ## Setup
 1. Grayscale. At this point I think working in grayscale should be enough to probe our point.
 2. Datasets:
-  2.1. MNIST
-  2.2. CIFAR10
-  2.3. Cats vs Dogs
+  - MNIST
+  - CIFAR10
+  - Cats vs Dogs
 
 ## Experiments
 1. Sweep over kernel sizes and analyze how the $\sigma$ changes across them.
