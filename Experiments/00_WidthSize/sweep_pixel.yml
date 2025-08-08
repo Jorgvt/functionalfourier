@@ -1,0 +1,8 @@
+program: 01_width_pixel.py
+method: grid
+metric:
+  name: val_loss
+  goal: minimize
+parameters:
+  GABOR_KERNEL_SIZE:
+    values: [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]
