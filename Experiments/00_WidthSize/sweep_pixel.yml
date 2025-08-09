@@ -1,3 +1,4 @@
+project: FourierNN
 program: 01_width_pixel.py
 method: grid
 metric:
