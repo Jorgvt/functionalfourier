@@ -43,7 +43,8 @@ from tensorflow.keras.datasets import mnist, cifar10
 
 # %%
 config = {
-    "DATASET": "mnist", # mnist / cifar10 / cats_vs_dogs
+    "DATASET": "cifar10", # mnist / cifar10 / cats_vs_dogs
+    "GRAYSCALE": True,
     "TEST_SPLIT": 0.2,
     "BATCH_SIZE": 64,
     "EPOCHS": 50,
@@ -86,7 +87,7 @@ config = wandb.config
 print(config)
 
 # %%
-dst_train, dst_val = load_data(config.DATASET, test_split=config.TEST_SPLIT)
+dst_train, dst_val = load_data(config.DATASET, test_split=config.TEST_SPLIT, grayscale=config.GRAYSCALE)
 if config.DATASET == "cats_vs_dogs": N_CLASSES = 2
 else: N_CLASSES = 10
 config["N_CLASSES"] = N_CLASSES
@@ -347,10 +348,10 @@ for epoch in range(config.EPOCHS):
 
     wandb.log({"gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"],
                     "mean_gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"].mean(),
-                    "mean_gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"].std(),
+                    "std_gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"].std(),
                     "gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].mean(),
                     "mean_gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].mean(),
-                    "mean_gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].std()})
+                    "std_gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].std()})
     wandb.log({f"{k}": wandb.Histogram(v) for k, v in flatten_params(state.params).items()}, commit=False)
     wandb.log({f"{k}": wandb.Histogram(v) for k, v in flatten_params(extra["intermediates"]).items()}, commit=False)
     wandb.log({"epoch": epoch+1, **{name:values[-1] for name, values in metrics_history.items()}})
