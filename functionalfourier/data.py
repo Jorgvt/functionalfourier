@@ -45,7 +45,8 @@ def load_cats_vs_dogs(test_split):
 
 # %% ../Notebooks/01_data.ipynb 6
 def load_data(name: str,
-              test_split: float):
+              test_split: float,
+              grayscale: bool = False):
     if name == "cifar10":
         dst_train, dst_val = load_cifar10()
 
@@ -54,5 +55,9 @@ def load_data(name: str,
 
     elif name == "cats_vs_dogs":
         dst_train, dst_val = load_cats_vs_dogs(test_split=test_split)
+
+    if grayscale and name != "mnist":
+        dst_train = dst_train.map(lambda x,y: (tf.image.rgb_to_grayscale(x), y))
+        dst_val = dst_val.map(lambda x,y: (tf.image.rgb_to_grayscale(x), y))
     
     return dst_train, dst_val
