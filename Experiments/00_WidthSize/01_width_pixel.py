@@ -346,12 +346,14 @@ for epoch in range(config.EPOCHS):
         if metrics_history["val_loss"][-1] <= min(metrics_history["val_loss"]):
             orbax_checkpointer.save(os.path.join(wandb.run.dir, "model-best"), state, save_args=save_args, force=True) # force=True means allow overwritting.
 
-    wandb.log({"gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"],
-                    "mean_gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"].mean(),
-                    "std_gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"].std(),
-                    "gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].mean(),
-                    "mean_gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].mean(),
-                    "std_gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].std()})
+    wandb.log({
+        "gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"],
+        "mean_gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"].mean(),
+        "std_gammax": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammax"].std(),
+        "gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"],
+        "mean_gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].mean(),
+        "std_gammay": state.params["GaborReductionReLUBlock_0"]["GaborLayerGamma__0"]["gammay"].std()
+    })
     wandb.log({f"{k}": wandb.Histogram(v) for k, v in flatten_params(state.params).items()}, commit=False)
     wandb.log({f"{k}": wandb.Histogram(v) for k, v in flatten_params(extra["intermediates"]).items()}, commit=False)
     wandb.log({"epoch": epoch+1, **{name:values[-1] for name, values in metrics_history.items()}})
