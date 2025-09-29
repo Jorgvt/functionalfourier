@@ -12,7 +12,7 @@ tf.config.set_visible_devices([], device_type='GPU')
 import jax
 from jax import lax, random, numpy as jnp
 import flax
-from flax.core import freeze, unfreeze, FrozenDict
+from flax.core import freeze, unfreeze, FrozenDict, pop
 from flax import linen as nn
 from flax import struct
 from flax.training import train_state
@@ -26,7 +26,6 @@ from ml_collections import ConfigDict
 
 from einops import reduce, rearrange
 import wandb
-from iqadatasets.datasets import *
 from fxlayers.layers import *
 from functionalfourier.layers import *
 from functionalfourier.layers import GaborReductionBlock
@@ -42,7 +41,7 @@ from tensorflow.keras.datasets import mnist, cifar10
 
 # %%
 config = {
-    "DATASET": "cats_vs_dogs", # mnist / cifar10 / cats_vs_dogs
+    "DATASET": "mnist", # mnist / cifar10 / cats_vs_dogs
     "TEST_SPLIT": 0.2,
     "BATCH_SIZE": 64,
     "EPOCHS": 50,
@@ -78,7 +77,7 @@ wandb.init(project="FourierNN",
            name="FourierDomain",
            job_type="training",
            config=dict(config),
-           mode="online",
+           mode="disabled",
            )
 config = wandb.config
 config
@@ -123,13 +122,14 @@ class FourierGaborReductionReLUBlock(nn.Module):
     @nn.compact
     def __call__(self,
                  inputs,
+                 train=False,
                  **kwargs,
                  ):
         ## Move input into Fourier space
         outputs_r, outputs_i = obtain_fourier(inputs)
 
         ## Apply Gabor + Reduction block
-        outputs_r, outputs_i = GaborReductionBlock(features=self.features, reduction=self.reduction, fs=self.fs, norm_energy=self.norm_energy, same_real_imag=self.same_real_imag, train_A=self.train_A)(outputs_r, outputs_i)
+        outputs_r, outputs_i = GaborReductionBlock(features=self.features, reduction=self.reduction, fs=self.fs, norm_energy=self.norm_energy, same_real_imag=self.same_real_imag, train_A=self.train_A)(outputs_r, outputs_i, train=train)
 
         ## Invert Fourier to apply non-linearity
         outputs = invert_fourier(outputs_r, outputs_i)
@@ -145,11 +145,12 @@ class Model(nn.Module):
     @nn.compact
     def __call__(self,
                  inputs,
+                 train=False,
                  **kwargs,
                  ):
         outputs = inputs
         for i in range(self.n_blocks):
-            outputs = FourierGaborReductionReLUBlock(features=config.N_GABORS*(i+1), reduction=config.REDUCTION, fs=32*config.REDUCTION*(i+1)/config.REDUCTION, norm_energy=config.NORMALIZE_ENERGY, same_real_imag=config.SAME_REAL_IMAG, train_A=config.A_GABOR)(outputs)
+            outputs = FourierGaborReductionReLUBlock(features=config.N_GABORS*(i+1), reduction=config.REDUCTION, fs=32*config.REDUCTION*(i+1)/config.REDUCTION, norm_energy=config.NORMALIZE_ENERGY, same_real_imag=config.SAME_REAL_IMAG, train_A=config.A_GABOR)(outputs, train=train)
     
         ## GAP & Dense for final prediction
         if config.GAP:
@@ -162,9 +163,10 @@ class Model(nn.Module):
         return outputs
 
 # %%
-model = Model(n_blocks=config.N_BLOCKS, n_classes=N_CLASSES)
-variables = model.init(random.PRNGKey(42), jnp.ones((1,*next(iter(dst_train))[0].shape)))
-state, params = variables.pop("params")
+# model = Model(n_blocks=config.N_BLOCKS, n_classes=N_CLASSES)
+# variables = model.init(random.PRNGKey(42), jnp.ones((1,*next(iter(dst_train))[0].shape)))
+# print(variables.keys())
+# state, params = variables.pop("params")
 
 # %%
 @struct.dataclass
@@ -182,7 +184,7 @@ class TrainState(train_state.TrainState):
 def create_train_state(module, key, tx, input_shape):
     """Creates the initial `TrainState`."""
     variables = module.init(key, jnp.ones(input_shape))
-    state, params = variables.pop('params')
+    state, params = pop(variables, 'params')
     return TrainState.create(
         apply_fn=module.apply,
         params=params,
@@ -201,19 +203,20 @@ def train_step(state, batch, return_grads=False):
     img, label = batch
     def loss_fn(params):
         ## Forward pass through the model
-        pred = state.apply_fn({"params": params, **state.state}, img, train=True)
+        pred, updated_state = state.apply_fn({"params": params, **state.state}, img, train=True, mutable=list(state.state.keys()))
 
         ## Calculate the distance
         loss = optax.softmax_cross_entropy_with_integer_labels(pred, label)
         
         ## Calculate pearson correlation
-        return loss.mean(), pred
+        return loss.mean(), (pred, updated_state)
     
-    (loss, pred), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+    (loss, (pred, updated_state)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
     state = state.apply_gradients(grads=grads)
     metrics_updates = state.metrics.single_from_model_output(loss=loss, logits=pred, labels=label)
     metrics = state.metrics.merge(metrics_updates)
     state = state.replace(metrics=metrics)
+    state = state.replace(state=updated_state)
     if return_grads: return state, grads
     else: return state
 
@@ -224,7 +227,7 @@ def compute_metrics(*, state, batch):
     img, label = batch
     def loss_fn(params):
         ## Forward pass through the model
-        pred = state.apply_fn({"params": params, **state.state}, img, train=True)
+        pred = state.apply_fn({"params": params, **state.state}, img, train=False)
 
         ## Calculate the distance
         loss = optax.softmax_cross_entropy_with_integer_labels(pred, label)
