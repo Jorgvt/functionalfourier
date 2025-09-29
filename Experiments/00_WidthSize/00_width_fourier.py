@@ -1,6 +1,7 @@
 
 # %%
 import os
+import argparse
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 from typing import Any, Callable, Sequence, Union
@@ -40,8 +41,12 @@ from functionalfourier.data import load_data
 from tensorflow.keras.datasets import mnist, cifar10
 
 # %%
+parser = argparse.ArgumentParser()
+parser.add_argument("--dataset", type=str, default="mnist", help="Dataset to use (mnist, cifar10, cats_vs_dogs)")
+args = parser.parse_args()
+
 config = {
-    "DATASET": "mnist", # mnist / cifar10 / cats_vs_dogs
+    "DATASET": args.dataset, # mnist / cifar10 / cats_vs_dogs
     "TEST_SPLIT": 0.2,
     "BATCH_SIZE": 64,
     "EPOCHS": 50,
