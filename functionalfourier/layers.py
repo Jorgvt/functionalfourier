@@ -18,12 +18,19 @@ class GaborGammaFourier(nn.Module):
     use_bias: bool = False
     norm_energy: bool = True
     train_A: bool = True
+    feature_group_count: int = 1
 
     @nn.compact
     def __call__(self,
                  inputs,
                  train=False,
                  **kwargs):
+        b, h, w, c = inputs.shape
+        is_initialized = self.has_variable("precalc_filter", "kernel")
+        precalc_filters = self.variable("precalc_filter",
+                                        "kernel",
+                                        jnp.zeros,
+                                        (h, w, self.features))
         freq = self.param("freq",
                           nn.initializers.uniform(scale=self.fs/2),
                           (self.features,))
@@ -46,11 +53,17 @@ class GaborGammaFourier(nn.Module):
                                             (self.features,))
         else: bias = 0.
 
-        fx, fy = self.generate_dominion(inputs.shape[1:-1], fs=self.fs)
-        kernel = jax.vmap(self.gaussians, in_axes=(None,None,0,None,0,0,0), out_axes=-1)(fx, fy, freq, 0., gammax, gammay, theta)
-        if self.norm_energy:
-            kernel = kernel / (kernel**2).sum(axis=(1,2), keepdims=True)**(1/2)
-            kernel = kernel / inputs.shape[-1]
+        if is_initialized and not train: 
+            kernel = precalc_filters.value
+        elif is_initialized and train: 
+            fx, fy = self.generate_dominion(inputs.shape[1:-1], fs=self.fs)
+            kernel = jax.vmap(self.gaussians, in_axes=(None,None,0,None,0,0,0), out_axes=-1)(fx, fy, freq, 0., gammax, gammay, theta)
+            if self.norm_energy:
+                kernel = kernel / (kernel**2).sum(axis=(1,2), keepdims=True)**(1/2)
+                kernel = kernel / inputs.shape[-1]
+            precalc_filters.value = kernel
+        else:
+            kernel = precalc_filters.value
             
         ## Add empty dims for broadcasting
         outputs = inputs[...,None] * kernel[None,...,None,:] * A[None,None,None,...]
@@ -111,16 +124,17 @@ class GaborReductionBlock(nn.Module):
     def __call__(self,
                  inputs_r,
                  inputs_i,
+                 train=False,
                  **kwargs,
                  ):
         ## Apply Gabors
         if not self.same_real_imag:
-            outputs_r = GaborGammaFourier(features=self.features, fs=self.fs, norm_energy=self.norm_energy, train_A=self.train_A)(inputs_r)
-            outputs_i = GaborGammaFourier(features=self.features, fs=self.fs, norm_energy=self.norm_energy, train_A=self.train_A)(inputs_i)
+            outputs_r = GaborGammaFourier(features=self.features, fs=self.fs, norm_energy=self.norm_energy, train_A=self.train_A)(inputs_r, train=train)
+            outputs_i = GaborGammaFourier(features=self.features, fs=self.fs, norm_energy=self.norm_energy, train_A=self.train_A)(inputs_i, train=train)
         else:
             g = GaborGammaFourier(features=self.features, fs=self.fs, norm_energy=self.norm_energy, train_A=self.train_A)
-            outputs_r = g(inputs_r)
-            outputs_i = g(inputs_i)
+            outputs_r = g(inputs_r, train=train)
+            outputs_i = g(inputs_i, train=train)
         
         ## Apply a dimensionality reduction step
         outputs_r = FourierPooling(reduction=self.reduction)(outputs_r)
