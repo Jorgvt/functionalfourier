@@ -77,7 +77,7 @@ wandb.init(project="FourierNN",
            name="FourierDomain",
            job_type="training",
            config=dict(config),
-           mode="disabled",
+           mode="online",
            )
 config = wandb.config
 config
